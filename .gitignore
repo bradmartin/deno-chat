@@ -1,4 +1,5 @@
 .DS_Store
 build/*
+!build/*.md
 log.txt
 deno_chat_server*

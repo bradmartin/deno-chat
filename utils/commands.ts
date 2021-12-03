@@ -10,7 +10,8 @@ export enum COMMANDS {
   'LEAVE' = 'LEAVE',
   'LOGOUT' = 'LOGOUT',
   'MEMBER' = 'MEMBER',
+  'ALL_USERS' = 'ALL_USERS',
   'CHATTERS' = 'CHATTERS',
-  'SWITCH' = 'SWITCH',
   'PM' = 'PM',
+  'IP' = 'IP',
 }

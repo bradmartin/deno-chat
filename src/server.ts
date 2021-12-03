@@ -5,6 +5,7 @@ import { COMMANDS } from '../utils/commands.ts';
 import { SERVER_MESSAGES } from '../utils/messages.ts';
 import { CommandHandlers } from './command-handlers.ts';
 import { ChatRoom } from './chatroom.ts';
+import { WelcomeMessage } from './welcome-message.ts';
 
 const decoder = new TextDecoder();
 
@@ -32,8 +33,13 @@ export class Server extends EventEmitter {
 
       this._handleConnection(user);
       // show user the welcome message
-      this._showWelcomeMessage(user);
+      WelcomeMessage.showWelcomeMessage(user);
     }
+  }
+
+  async systemMessageToUser(msg: string, connection: Deno.Conn) {
+    const systemMsgPrefix = `📢 System Message 📢`;
+    await this._write(`${systemMsgPrefix} :: ${msg}`, connection);
   }
 
   async messageToSender(msg: string, connection: Deno.Conn) {
@@ -47,7 +53,7 @@ export class Server extends EventEmitter {
 
     if (userToSendTo) {
       // append the datetime to the message and PRIVATE MESSAGE NOTE
-      const messageString = `${new Date().toLocaleTimeString()} > *** PRIVATE MESSAGE *** > ${user.name} :: ${msg}`;
+      const messageString = `${new Date().toLocaleTimeString()} > 🤫 Private Message 🤫 > ${user.name} :: ${msg}`;
       logger.info(messageString);
       await this._write(messageString, userToSendTo.connection);
     } else {
@@ -72,6 +78,12 @@ export class Server extends EventEmitter {
       if (room.name === chatroomName) {
         // channel exists so just join it
         room.connectedUsers.push(user);
+        // set the active chat room for the user
+        user.activeChatRoom = room;
+        this.systemMessageToUser(
+          `${chatroomName} joined, there are ${room.connectedUsers.length} users here.`,
+          user.connection
+        );
         return;
       }
     }
@@ -86,7 +98,7 @@ export class Server extends EventEmitter {
     newChatroom.connectedUsers.push(user);
     // set the active chat room for the user
     user.activeChatRoom = newChatroom;
-    this.messageToSender(`Chatroom: ${chatroomName} created.`, user.connection);
+    this.systemMessageToUser(`Chatroom: ${chatroomName} created. You are the admin.`, user.connection);
   }
 
   private async _handleConnection(user: User) {
@@ -96,7 +108,6 @@ export class Server extends EventEmitter {
         const count = await user.connection.read(buffer);
 
         if (!count) {
-          this._announceUserLeaving(user);
           // connection closed
           const index = this.connectedUsers.indexOf(user);
           this.connectedUsers.splice(index, 1);
@@ -122,7 +133,6 @@ export class Server extends EventEmitter {
 
     // check if a command was passed to the server
     if (text.startsWith('/') === true) {
-      logger.info(`${new Date().toLocaleTimeString()} > ${user.name} sent command ${text}.`);
       // handle the command here
       this._handleCommand(text, user);
       return;
@@ -134,21 +144,18 @@ export class Server extends EventEmitter {
       return;
     }
 
-    // here we have text input so we can send to the connected users
-    // iterate all connected users and send the message to those connections
-    // add the username and timestamp to the message
+    // be sure the user is in a chatroom to send message
+    if (!user.activeChatRoom) {
+      this.systemMessageToUser(SERVER_MESSAGES.JOIN_CHATROOM_TO_CHAT, user.connection);
+      return;
+    }
+
+    // user is in good to send a message to the active chat room
     const messageString = `${new Date().toLocaleTimeString()} > ${user.name} :: ${text}`;
     logger.info(messageString);
-    this._broadcastMessage(messageString, user);
-  }
+    this.sendChatroomMessage(messageString, user);
 
-  private async _announceUserLeaving(user: User) {
-    // logger.info(`User left chat ${user.name}`);
-    for (const currentConnection of this.connectedUsers) {
-      if (currentConnection !== user) {
-        await this._write(this._userLeftServerString(user.name), currentConnection.connection);
-      }
-    }
+    // this._broadcastMessage(messageString, user);
   }
 
   private async _write(data: Uint8Array | string | Packet, connection: Deno.Conn) {
@@ -179,8 +186,11 @@ export class Server extends EventEmitter {
       case COMMANDS.LOGOUT:
         CommandHandlers.logout(user);
         break;
+      case COMMANDS.ALL_USERS:
+        CommandHandlers.allUsers(user);
+        break;
       case COMMANDS.CHATTERS:
-        this.messageToSender(`Currently ${this.connectedUsers.length} users connected.`, user.connection);
+        CommandHandlers.chatRoomUsers(params, user);
         break;
       case COMMANDS.ROOM:
         CommandHandlers.activeChatRoom(user);
@@ -197,62 +207,36 @@ export class Server extends EventEmitter {
       case COMMANDS.LEAVE:
         CommandHandlers.leaveChatroom(params, user);
         break;
+      case COMMANDS.MEMBER:
+        CommandHandlers.listJoinedRooms(user);
+        break;
       case COMMANDS.PM:
         CommandHandlers.PM(params, user);
         break;
       case COMMANDS.BLOCK:
         CommandHandlers.blockUser(params, user);
         break;
+      case COMMANDS.IP:
+        CommandHandlers.getMyIp(user);
+        break;
       default:
-        this.messageToSender(SERVER_MESSAGES.INVALID_COMMAND, user.connection);
+        this.systemMessageToUser(SERVER_MESSAGES.INVALID_COMMAND, user.connection);
         break;
     }
   }
 
-  private async _systemMessage(msg: string) {
-    for (let i = 0; i < this.connectedUsers.length; i++) {
-      const el = this.connectedUsers[i];
-      await this._write(`${msg}`, el.connection);
-    }
-  }
-
-  private async _broadcastMessage(msg: string, user: User) {
-    for (let i = 0; i < this.connectedUsers.length; i++) {
-      const el = this.connectedUsers[i];
-      if (el !== user) {
-        // TODO: check if chat message is from a blocked user and DO NOTHING
-
-        await this._write(`${msg}`, el.connection);
+  private async sendChatroomMessage(msg: string, user: User) {
+    try {
+      // need to get all the connected users in the users active chatroom
+      // then send the message to the chat room
+      for await (const x of user.activeChatRoom!.connectedUsers) {
+        if (x.id !== user.id) {
+          // send the message to this user in this room
+          await this._write(`${msg}`, x.connection);
+        }
       }
+    } catch (error) {
+      logger.error(error);
     }
-  }
-
-  private async _showWelcomeMessage(user: User) {
-    const userCountString =
-      this.connectedUsers.length <= 1
-        ? `You are the only user on the server. 👋                                                      *`
-        : `There are currently ${this.connectedUsers.length} users on the server. 💬                                                *`;
-    const welcomeString = `
-    *************************************************************************************************
-    *   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄    *
-    *   ██░███░█░▄▄█░██▀▄▀█▀▄▄▀█░▄▀▄░█░▄▄███▄░▄█▀▄▄▀████░▄▄▀█░▄▄█░▄▄▀█▀▄▄▀████░▄▄▀█░████░▄▄▀█▄░▄    *
-    *   ██░█░█░█░▄▄█░██░█▀█░██░█░█▄█░█░▄▄████░██░██░████░██░█░▄▄█░██░█░██░████░████░▄▄░█░▀▀░██░█    *
-    *   ██▄▀▄▀▄█▄▄▄█▄▄██▄███▄▄██▄███▄█▄▄▄████▄███▄▄█████░▀▀░█▄▄▄█▄██▄██▄▄█████░▀▀▄█▄██▄█▄██▄██▄█    *
-    *   ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀    *
-    *  Your current username is ${user.name}.                          * 
-    *  Enter /login to set your own username.                                                       *
-    *  For more commands and if you are feeling lost, enter /info.                                  *
-    *                                                                                               *
-    *  ${userCountString}
-    *************************************************************************************************
-    `;
-    await this._write(welcomeString, user.connection);
-  }
-
-  private _userLeftServerString(userName: string) {
-    return `
-    **************** 📣 Server Announcement 📣 **************
-    ${userName} left the server at ${new Date().toLocaleTimeString()}
-    *********************************************************\n`;
   }
 }

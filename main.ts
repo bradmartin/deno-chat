@@ -31,10 +31,12 @@ async function setupLogger() {
 
   await log.setup({
     handlers: {
-      //   console: new log.handlers.ConsoleHandler('DEBUG' || 'INFO' || 'WARNING'),
+      console: new log.handlers.ConsoleHandler('DEBUG'),
 
-      file: new log.handlers.FileHandler('WARNING' || 'INFO' || 'ERROR' || 'CRITICAL', {
-        filename: `../logs/log-${fileDate}.txt`,
+      file: new log.handlers.FileHandler('INFO', {
+        filename: `./log-${fileDate}.txt`,
+        // you can change format of output message using any keys in `LogRecord`.
+        formatter: '{levelName} {msg}',
       }),
     },
   });

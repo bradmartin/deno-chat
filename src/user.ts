@@ -8,6 +8,7 @@ export class User {
   blockedUsers: User[] = [];
   isAuthenticated = false;
   activeChatRoom?: ChatRoom;
+  joinedRooms?: ChatRoom[];
 
   constructor(opts: UserOptions) {
     this.id = opts.id;
