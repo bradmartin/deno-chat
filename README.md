@@ -62,3 +62,11 @@ or with npm
 #### /IP - Get your IP address. 🌎
 
 ---
+
+### Dependencies
+
+- Ask: https://deno.land/x/ask@1.0.6/mod.ts - A third party lib for prompting the user with a question and answer.
+
+### Why Deno
+
+Deno being stable for some time now and its creators being the same as the original creators of Node makes it a very exciting and potentially strong framework moving forward. Its first class TS support made everything fairly simple to get up and running. You can read more about [Deno here](https://deno.land/).
