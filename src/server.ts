@@ -240,7 +240,7 @@ export class Server extends EventEmitter {
     *   ██▄▀▄▀▄█▄▄▄█▄▄██▄███▄▄██▄███▄█▄▄▄████▄███▄▄█████░▀▀░█▄▄▄█▄██▄██▄▄█████░▀▀▄█▄██▄█▄██▄██▄█    *
     *   ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀    *
     *  Your current username is ${user.name}.                          * 
-    *  Enter /nickname to select your own username.                                                 *
+    *  Enter /login to set your own username.                                                 *
     *  For more commands and if you are feeling lost, enter /info.                                  *
     *                                                                                               *
     *  ${userCountString}
