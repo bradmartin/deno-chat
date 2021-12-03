@@ -34,10 +34,18 @@ async function setupLogger() {
       console: new log.handlers.ConsoleHandler('DEBUG'),
 
       file: new log.handlers.FileHandler('INFO', {
-        filename: `./log-${fileDate}.txt`,
+        filename: `./logs/log-${fileDate}.txt`,
         // you can change format of output message using any keys in `LogRecord`.
         formatter: '{levelName} {msg}',
       }),
+    },
+
+    loggers: {
+      // configure default logger available via short-hand methods above
+      default: {
+        level: 'DEBUG' || 'INFO' || 'ERROR' || 'CRITICAL',
+        handlers: ['console', 'file'],
+      },
     },
   });
 

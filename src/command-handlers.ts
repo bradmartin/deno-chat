@@ -1,6 +1,7 @@
 import { SERVER_MESSAGES } from '../utils/messages.ts';
 import { User } from './user.ts';
 import { server, logger } from '../main.ts';
+import { ChatRoom } from './chatroom.ts';
 
 export class CommandHandlers {
   static exit(user: User) {
@@ -12,7 +13,7 @@ export class CommandHandlers {
     server.messageToSender(SERVER_MESSAGES.INFO, user.connection);
   }
 
-  static PM(params: string[], user: User) {
+  static async PM(params: string[], user: User) {
     // check auth first
     if (!user.isAuthenticated) {
       server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
@@ -26,11 +27,42 @@ export class CommandHandlers {
     } else if (params.length >= 2) {
       const usernameToMessage = params[0];
       const msg = params.slice(1).join(' ');
-      server.sendPrivateMessage(usernameToMessage, msg, user);
+
+      // we need to find the user being messaged and see if they are blocked by the sender (user argument in this case)
+      const recipientIndex = server.connectedUsers.findIndex((x) => x.name === usernameToMessage);
+      const recipient = server.connectedUsers[recipientIndex];
+      console.log('we have receipient', recipient);
+      if (!recipient) {
+        // we dont have the receipient so we can't send a PM
+        server.messageToSender(
+          `User: ${usernameToMessage} is not active on the server. Unable to send message right now.`,
+          user.connection
+        );
+        return;
+      }
+
+      console.log('looping recipient blocked users');
+      for await (const blockedUser of recipient.blockedUsers) {
+        console.log(blockedUser);
+        if (blockedUser.id === usernameToMessage) {
+          logger.info(`Private message was blocked, ${user.name} cannot message ${blockedUser.name}`);
+          return;
+        }
+      }
+
+      if (recipient) {
+        // append the datetime to the message and PRIVATE MESSAGE NOTE
+        const messageString = `${new Date().toLocaleTimeString()} > 🤫 Private Message 🤫 > ${user.name} :: ${msg}`;
+        logger.info(messageString);
+        await server.messageToSender(messageString, recipient.connection);
+      } else {
+        // no user found so tell the user that the user is offline and didn't get the message
+        server.messageToSender('user is not online', user.connection);
+      }
     }
   }
 
-  static blockUser(params: string[], user: User) {
+  static async blockUser(params: string[], user: User) {
     // check auth first
     if (!user.isAuthenticated) {
       server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
@@ -42,7 +74,39 @@ export class CommandHandlers {
       server.systemMessageToUser(SERVER_MESSAGES.INVALID_IGNORE, user.connection);
     } else if (params.length === 1) {
       const usernameToBlock = params[0];
-      server.blockUser(usernameToBlock, user);
+      console.log(usernameToBlock);
+
+      for await (const x of server.connectedUsers) {
+        if (x.name === usernameToBlock) {
+          user.blockedUsers.push(x);
+          server.systemMessageToUser(
+            `${usernameToBlock} has been blocked. You should no longer see any messages from them.`,
+            user.connection
+          );
+        }
+      }
+    }
+  }
+
+  static async listOfBlockedUsers(user: User) {
+    // check auth first
+    if (!user.isAuthenticated) {
+      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
+      return;
+    }
+
+    // get list and format for string
+    let blockedUserString = '';
+    if (user.blockedUsers.length >= 1) {
+      for await (const x of user.blockedUsers) {
+        blockedUserString += `\n${x.name}\n`;
+      }
+      server.systemMessageToUser(`You have blocked the following users: ${blockedUserString}`, user.connection);
+    } else {
+      server.systemMessageToUser(
+        `You have not blocked any users. Enter /block <username> to block someone.`,
+        user.connection
+      );
     }
   }
 
@@ -51,7 +115,12 @@ export class CommandHandlers {
    * @param params
    * @param user
    */
-  static login(params: string[], user: User) {
+  static async login(params: string[], user: User) {
+    if (user.isAuthenticated) {
+      // user is already authenticated, so for now just tell them... logout first
+      server.systemMessageToUser(SERVER_MESSAGES.ALREADY_LOGGED_IN, user.connection);
+    }
+
     if (params.length <= 0) {
       server.systemMessageToUser(SERVER_MESSAGES.INVALID_LOGIN, user.connection);
     } else if (params.length === 1) {
@@ -70,7 +139,20 @@ export class CommandHandlers {
       user.name = params[0];
       user.isAuthenticated = true;
       logger.info(`User: ${user.name} logged in.`);
-      server.systemMessageToUser(SERVER_MESSAGES.LOGGED_IN, user.connection);
+      // get list of rooms the user can go ahead and join and send in message
+      let serverListString = '';
+      if (server.chatRooms.length >= 1) {
+        serverListString += `Current Chatrooms: \n`;
+        for await (const room of server.chatRooms) {
+          serverListString += `Chatroom: ${room.name} :: ${room.connectedUsers.length} active users.`;
+        }
+      }
+      const msg =
+        serverListString !== ''
+          ? SERVER_MESSAGES.LOGGED_IN + '\n' + serverListString
+          : SERVER_MESSAGES.LOGGED_IN +
+            ` There are no current chat rooms on the server. Enter /join <chatroom name> to create one.`;
+      server.systemMessageToUser(msg, user.connection);
     }
   }
 
@@ -90,7 +172,7 @@ export class CommandHandlers {
    * @param params
    * @param user
    */
-  static joinChatroom(params: string[], user: User) {
+  static async joinChatroom(params: string[], user: User) {
     // check auth first
     if (!user.isAuthenticated) {
       server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
@@ -101,7 +183,33 @@ export class CommandHandlers {
     if (params.length <= 0) {
       server.systemMessageToUser(SERVER_MESSAGES.INVALID_CHATROOM_JOIN, user.connection);
     } else if (params.length === 1) {
-      server.joinChatroom(params[0], user);
+      // server.joinChatroom(params[0], user);
+      const chatroomName = params[0];
+      for await (const room of server.chatRooms) {
+        if (room.name === chatroomName) {
+          // channel exists so just join it
+          room.connectedUsers.push(user);
+          // set the active chat room for the user
+          user.activeChatRoom = room;
+          server.systemMessageToUser(
+            `${chatroomName} joined, there are ${room.connectedUsers.length} users here.`,
+            user.connection
+          );
+          return;
+        }
+      }
+
+      // create the chatroom
+      const newChatroom = new ChatRoom({
+        name: chatroomName,
+        admin: user,
+      });
+      server.chatRooms.push(newChatroom);
+      // add the user to the new chatroom
+      newChatroom.connectedUsers.push(user);
+      // set the active chat room for the user
+      user.activeChatRoom = newChatroom;
+      server.systemMessageToUser(`Chatroom: ${chatroomName} created. You are the admin.`, user.connection);
     }
   }
 
@@ -117,8 +225,7 @@ export class CommandHandlers {
       server.systemMessageToUser(SERVER_MESSAGES.INVALID_CHATROOM_LEAVE, user.connection);
     } else if (params.length === 1) {
       // be sure user is in a chatroom first
-      const roomName = params[1];
-      logger.debug(`User request to leave room: ${roomName}`);
+      const roomName = params[0];
       // check if the user is in that chatroom
       if (user.activeChatRoom?.name === roomName) {
         // user is in this chatroom now so we can leave
@@ -166,28 +273,30 @@ export class CommandHandlers {
     }
 
     // be sure we have the chatroom name and username param to kick the correct user
-    if (params.length <= 0) {
+    if (params.length <= 1) {
       server.systemMessageToUser(SERVER_MESSAGES.INVALID_KICK, user.connection);
     } else if (params.length === 2) {
-      console.log(params);
       // kick the user if we are admin
       // find the chatroom by name
-      for await (const room of server.chatRooms) {
-        if (room.name === params[1]) {
-          // we have the chatroom
-          // now see if the user is admin
-          if (room.admin === user) {
-            // we are safe to kick since the admin sent the command
-            // so find the user from the param provided and remove them from the room users
-            for await (const x of room.connectedUsers) {
-              if (x.name === params[1]) {
-                // yay we can remove it
-                const i = room.connectedUsers.indexOf(x);
-                room.connectedUsers.splice(i, 1);
-                const msg = `User: ${x.name} kicked from chatroom: ${x.name}.`;
-                logger.info(msg);
-                server.systemMessageToUser(msg, user.connection);
-              }
+      const roomIndex = server.chatRooms.findIndex((x) => x.name === params[0]);
+      const room = server.chatRooms[roomIndex];
+
+      if (room.name === params[0]) {
+        // we have the right room
+        // now be sure the user kicking is the admin
+        if (room.admin === user) {
+          // user is the admin so we can kick
+          for await (const x of room.connectedUsers) {
+            if (x.name === params[1]) {
+              // yay we can remove it
+              const i = room.connectedUsers.indexOf(x);
+              room.connectedUsers.splice(i, 1);
+              // remove the active chatroom from the user being kicked
+              x.activeChatRoom = undefined;
+              const msg = `User: ${x.name} kicked from chatroom: ${x.name}.`;
+              logger.info(msg);
+              server.systemMessageToUser(`You have been kicked from ${room.name}`, x.connection);
+              server.systemMessageToUser(msg, user.connection);
             }
           }
         }
@@ -256,5 +365,14 @@ export class CommandHandlers {
     } else {
       server.messageToSender(`An error occurred retreiving your IP, try again later.`, user.connection);
     }
+  }
+
+  static whoAmI(user: User) {
+    const msg = `
+      Id: ${user.id},
+      Name: ${user.name},
+      Active Chat Room: ${user.activeChatRoom?.name}
+    `;
+    server.messageToSender(msg, user.connection);
   }
 }

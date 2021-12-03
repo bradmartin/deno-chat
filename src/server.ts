@@ -38,67 +38,11 @@ export class Server extends EventEmitter {
   }
 
   async systemMessageToUser(msg: string, connection: Deno.Conn) {
-    const systemMsgPrefix = `📢 System Message 📢`;
-    await this._write(`${systemMsgPrefix} :: ${msg}`, connection);
+    await this._write(`📢 System Message 📢 :: ${msg}`, connection);
   }
 
   async messageToSender(msg: string, connection: Deno.Conn) {
     await this._write(`${msg}`, connection);
-  }
-
-  async sendPrivateMessage(usernameToMessage: string, msg: string, user: User) {
-    const userToSendTo = this.connectedUsers.find((user) => user.name === usernameToMessage);
-    console.log('user to message', userToSendTo);
-    // TODO: check if private message is from a blocked user and DO NOTHING
-
-    if (userToSendTo) {
-      // append the datetime to the message and PRIVATE MESSAGE NOTE
-      const messageString = `${new Date().toLocaleTimeString()} > 🤫 Private Message 🤫 > ${user.name} :: ${msg}`;
-      logger.info(messageString);
-      await this._write(messageString, userToSendTo.connection);
-    } else {
-      // no user found so tell the user that the user is offline and didn't get the message
-      this.messageToSender('user is not online', user.connection);
-    }
-  }
-
-  async blockUser(username: string, requester: User) {
-    for (let i = 0; i < this.connectedUsers.length; i++) {
-      const user = this.connectedUsers[i];
-      if (user.name !== username) {
-        // we found the user to block, so let's add this user to the block list for the requesting user
-        user.blockedUsers.push(user);
-        await this.messageToSender(`${username} is being ignored.`, requester.connection);
-      }
-    }
-  }
-
-  async joinChatroom(chatroomName: string, user: User) {
-    for await (const room of this.chatRooms) {
-      if (room.name === chatroomName) {
-        // channel exists so just join it
-        room.connectedUsers.push(user);
-        // set the active chat room for the user
-        user.activeChatRoom = room;
-        this.systemMessageToUser(
-          `${chatroomName} joined, there are ${room.connectedUsers.length} users here.`,
-          user.connection
-        );
-        return;
-      }
-    }
-
-    // create the chatroom
-    const newChatroom = new ChatRoom({
-      name: chatroomName,
-      admin: user,
-    });
-    this.chatRooms.push(newChatroom);
-    // add the user to the new chatroom
-    newChatroom.connectedUsers.push(user);
-    // set the active chat room for the user
-    user.activeChatRoom = newChatroom;
-    this.systemMessageToUser(`Chatroom: ${chatroomName} created. You are the admin.`, user.connection);
   }
 
   private async _handleConnection(user: User) {
@@ -154,8 +98,6 @@ export class Server extends EventEmitter {
     const messageString = `${new Date().toLocaleTimeString()} > ${user.name} :: ${text}`;
     logger.info(messageString);
     this.sendChatroomMessage(messageString, user);
-
-    // this._broadcastMessage(messageString, user);
   }
 
   private async _write(data: Uint8Array | string | Packet, connection: Deno.Conn) {
@@ -216,8 +158,14 @@ export class Server extends EventEmitter {
       case COMMANDS.BLOCK:
         CommandHandlers.blockUser(params, user);
         break;
+      case COMMANDS.BLOCKED:
+        CommandHandlers.listOfBlockedUsers(user);
+        break;
       case COMMANDS.IP:
         CommandHandlers.getMyIp(user);
+        break;
+      case COMMANDS.WHOAMI:
+        CommandHandlers.whoAmI(user);
         break;
       default:
         this.systemMessageToUser(SERVER_MESSAGES.INVALID_COMMAND, user.connection);
@@ -227,12 +175,22 @@ export class Server extends EventEmitter {
 
   private async sendChatroomMessage(msg: string, user: User) {
     try {
-      // need to get all the connected users in the users active chatroom
-      // then send the message to the chat room
+      // loop all the chatroom users and send message
       for await (const x of user.activeChatRoom!.connectedUsers) {
+        // we dont send the message to the user who sent it
         if (x.id !== user.id) {
-          // send the message to this user in this room
-          await this._write(`${msg}`, x.connection);
+          // we also need to not send messages to users who have BLOCKED the sender
+          if (x.blockedUsers.length >= 1) {
+            // this user has blocked users so lets check if the sender is already blocked
+            for await (const blockedUser of x.blockedUsers) {
+              if (blockedUser.id !== user.id) {
+                // this user is not currently blocked so we can send the message
+                await this._write(`${msg}`, x.connection);
+              }
+            }
+          } else {
+            await this._write(`${msg}`, x.connection);
+          }
         }
       }
     } catch (error) {

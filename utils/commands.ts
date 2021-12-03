@@ -3,6 +3,7 @@ export enum COMMANDS {
   'INFO' = 'INFO',
   'LOGIN' = 'LOGIN',
   'BLOCK' = 'BLOCK',
+  'BLOCKED' = 'BLOCKED',
   'ROOM' = 'ROOM',
   'ROOMS' = 'ROOMS',
   'JOIN' = 'JOIN',
@@ -13,5 +14,6 @@ export enum COMMANDS {
   'ALL_USERS' = 'ALL_USERS',
   'CHATTERS' = 'CHATTERS',
   'PM' = 'PM',
+  'WHOAMI' = 'WHOAMI',
   'IP' = 'IP',
 }
