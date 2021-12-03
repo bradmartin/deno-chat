@@ -1,10 +1,10 @@
 export enum COMMANDS {
   'EXIT' = 'EXIT',
-  'HELP' = 'HELP',
+  'INFO' = 'INFO',
   'LOGIN' = 'LOGIN',
   'BLOCK' = 'BLOCK',
-  'CHANNEL' = 'CHANNEL',
-  'CHANNELS' = 'CHANNELS',
+  'ROOM' = 'ROOM',
+  'ROOMS' = 'ROOMS',
   'JOIN' = 'JOIN',
   'KICK' = 'KICK',
   'LEAVE' = 'LEAVE',

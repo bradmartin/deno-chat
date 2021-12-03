@@ -4,13 +4,13 @@ import { Packet } from './packet.ts';
 import { COMMANDS } from '../utils/commands.ts';
 import { SERVER_MESSAGES } from '../utils/messages.ts';
 import { CommandHandlers } from './command-handlers.ts';
-import { Channel } from './channel.ts';
+import { ChatRoom } from './chatroom.ts';
 
 const decoder = new TextDecoder();
 
 export class Server extends EventEmitter {
   connectedUsers: User[] = [];
-  channels: Channel[] = [];
+  chatRooms: ChatRoom[] = [];
 
   constructor() {
     super();
@@ -67,6 +67,28 @@ export class Server extends EventEmitter {
     }
   }
 
+  async joinChatroom(chatroomName: string, user: User) {
+    for await (const room of this.chatRooms) {
+      if (room.name === chatroomName) {
+        // channel exists so just join it
+        room.connectedUsers.push(user);
+        return;
+      }
+    }
+
+    // create the chatroom
+    const newChatroom = new ChatRoom({
+      name: chatroomName,
+      admin: user,
+    });
+    this.chatRooms.push(newChatroom);
+    // add the user to the new chatroom
+    newChatroom.connectedUsers.push(user);
+    // set the active chat room for the user
+    user.activeChatRoom = newChatroom;
+    this.messageToSender(`Chatroom: ${chatroomName} created.`, user.connection);
+  }
+
   private async _handleConnection(user: User) {
     try {
       const buffer = new Uint8Array(1024);
@@ -94,7 +116,6 @@ export class Server extends EventEmitter {
 
   private _handleMessage(text: string, user: User) {
     // check if the text is empty - DO NOTHING
-    console.log(text);
     if (!text || text === undefined || text === '' || text === null) {
       return;
     }
@@ -104,6 +125,12 @@ export class Server extends EventEmitter {
       logger.info(`${new Date().toLocaleTimeString()} > ${user.name} sent command ${text}.`);
       // handle the command here
       this._handleCommand(text, user);
+      return;
+    }
+
+    // be sure the user has logged in by entering a username
+    if (!user.isAuthenticated) {
+      this.messageToSender(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
       return;
     }
 
@@ -138,17 +165,37 @@ export class Server extends EventEmitter {
     // first character is '/'
     let [command, ...params] = input.slice(1).split(' ');
     command = command.toUpperCase().trim();
-    console.log(params);
 
     switch (command) {
       case COMMANDS.EXIT:
         CommandHandlers.exit(user);
         break;
-      case COMMANDS.HELP:
-        CommandHandlers.help(user);
+      case COMMANDS.INFO:
+        CommandHandlers.info(user);
         break;
       case COMMANDS.LOGIN:
         CommandHandlers.login(params, user);
+        break;
+      case COMMANDS.LOGOUT:
+        CommandHandlers.logout(user);
+        break;
+      case COMMANDS.CHATTERS:
+        this.messageToSender(`Currently ${this.connectedUsers.length} users connected.`, user.connection);
+        break;
+      case COMMANDS.ROOM:
+        CommandHandlers.activeChatRoom(user);
+        break;
+      case COMMANDS.ROOMS:
+        CommandHandlers.listChatRooms(user);
+        break;
+      case COMMANDS.JOIN:
+        CommandHandlers.joinChatroom(params, user);
+        break;
+      case COMMANDS.KICK:
+        CommandHandlers.kickUser(params, user);
+        break;
+      case COMMANDS.LEAVE:
+        CommandHandlers.leaveChatroom(params, user);
         break;
       case COMMANDS.PM:
         CommandHandlers.PM(params, user);
@@ -194,7 +241,7 @@ export class Server extends EventEmitter {
     *   ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀    *
     *  Your current username is ${user.name}.                          * 
     *  Enter /nickname to select your own username.                                                 *
-    *  For more commands and if you are feeling lost, enter /help.                                  *
+    *  For more commands and if you are feeling lost, enter /info.                                  *
     *                                                                                               *
     *  ${userCountString}
     *************************************************************************************************
