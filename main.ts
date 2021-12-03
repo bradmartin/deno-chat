@@ -4,6 +4,8 @@ import * as log from 'https://deno.land/std@0.116.0/log/mod.ts';
 import Ask from 'https://deno.land/x/ask@1.0.6/mod.ts';
 
 export const logger = await setupLogger();
+
+// if port = 0 then you'll be prompted for a port number on start up, otherwise set your port value here
 export let { port } = { port: 0 };
 
 // prompt the user for what port they want to open on the server
@@ -35,19 +37,6 @@ async function setupLogger() {
         filename: `../logs/log-${fileDate}.txt`,
       }),
     },
-
-    // loggers: {
-    //   // configure default logger available via short-hand methods above.
-    //   default: {
-    //     level: 'DEBUG',
-    //     handlers: ['console', 'file'],
-    //   },
-
-    //   tasks: {
-    //     level: 'ERROR',
-    //     handlers: ['console'],
-    //   },
-    // },
   });
 
   return log.getLogger();
