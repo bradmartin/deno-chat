@@ -1,10 +1,12 @@
-import { decoder, EventEmitter, logger, port } from '../main.ts';
+import { EventEmitter, logger, port } from '../main.ts';
 import { User } from './user.ts';
 import { Packet } from './packet.ts';
 import { COMMANDS } from '../utils/commands.ts';
 import { SERVER_MESSAGES } from '../utils/messages.ts';
 import { CommandHandlers } from './command-handlers.ts';
 import { Channel } from './channel.ts';
+
+const decoder = new TextDecoder();
 
 export class Server extends EventEmitter {
   connectedUsers: User[] = [];
@@ -20,7 +22,8 @@ export class Server extends EventEmitter {
 
     for await (const connection of listener) {
       // assign a username when new connection is made
-      const user = new User({ name: `User-${crypto.randomUUID()}`, connection });
+      const userId = crypto.randomUUID();
+      const user = new User({ id: userId, name: `User-${userId}`, connection });
       this.connectedUsers.push(user);
 
       // check if this is the only connected user

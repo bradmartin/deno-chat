@@ -1,17 +1,14 @@
-// import { Logger } from './src/logger.ts';
 import { Server } from './src/server.ts';
 export { EventEmitter } from 'https://deno.land/std@0.116.0/node/events.ts';
 import * as log from 'https://deno.land/std@0.116.0/log/mod.ts';
 import Ask from 'https://deno.land/x/ask@1.0.6/mod.ts';
 
-export const encoder = new TextEncoder();
-export const decoder = new TextDecoder();
-export let logger: log.Logger;
-export let port: number;
-export let server: Server;
+export const logger = await setupLogger();
+export let { port } = { port: 0 };
 
-async function main() {
-  const ask = new Ask(); // global options are also supported! (see below)
+// prompt the user for what port they want to open on the server
+if (port === 0) {
+  const ask = new Ask();
   const answers = await ask.prompt([
     {
       name: 'port',
@@ -20,12 +17,10 @@ async function main() {
     },
   ]);
   port = answers['port'] ? (answers['port'] as number) : 8080;
-
-  logger = await setupLogger();
-
-  server = new Server();
-  logger.info(`Chat running on port: ${port}`);
 }
+
+export const server = new Server();
+logger.info(`Chat running on port: ${port}`);
 
 async function setupLogger() {
   // custom configuration with 2 loggers (the default and `tasks` loggers).
@@ -57,5 +52,3 @@ async function setupLogger() {
 
   return log.getLogger();
 }
-
-main();

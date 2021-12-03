@@ -17,7 +17,6 @@ export enum SERVER_MESSAGES {
   # /LOGIN <desired username> - Authenticate with the server. 🔑
   # /LOGOUT - Log out. 🔐
   # /MEMBER - List channels you've joined. 📝
-  # /NICKNAME <new display name> - Change your display name. 🎭
   # /HELP - List available commands. 🙋‍♂️
   # /CHATTERS - List users in this channel. 🗣
   # /SWITCH <channel name> - Switch to a channel you're a member of. 🔌

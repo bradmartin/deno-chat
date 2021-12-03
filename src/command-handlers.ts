@@ -36,10 +36,19 @@ export const CommandHandlers = {
     }
   },
 
+  /**
+   * Will set the user name to the desired username.
+   * @param params
+   * @param user
+   */
   login: (params: string[], user: User) => {
     logger.debug('User sent LOGIN command');
     if (params.length <= 0) {
       server.messageToSender(SERVER_MESSAGES.INVALID_LOGIN, user.connection);
+    } else if (params.length === 1) {
+      user.name = params[0];
+      logger.debug(user);
+      console.log('logged in as BRADMARTIN');
     }
   },
 };
