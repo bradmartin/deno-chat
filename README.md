@@ -19,8 +19,8 @@ If you have `npm` installed you can use some npm scripts below, if not the deno 
 or with npm
 `npm run dev`
 
-## Build Executable
+## Build Executables
 
 `deno compile --allow-all --output=./build/chat_server ./main.ts`
 or with npm
-`npm run prod`
+`npm run build`

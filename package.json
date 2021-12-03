@@ -1,6 +1,10 @@
 {
   "scripts": {
     "dev": "deno run --allow-all --watch=./**/*.ts ./main.ts",
-    "compile": "deno compile --allow-all --output=./build/chat_server ./main.ts"
+    "build": "npm run build-mac64 && npm run build-mac86x64 && npm run build-linux && npm run build-windows",
+    "build-mac64": "deno compile --allow-all --output=./deno_chat_server_mac64 --target=aarch64-apple-darwin ./main.ts",
+    "build-mac86x64": "deno compile --allow-all --output=./deno_chat_server_mac86x64 --target=x86_64-apple-darwin ./main.ts",
+    "build-linux": "deno compile --allow-all --output=./deno_chat_server_linux --target=x86_64-unknown-linux-gnu ./main.ts",
+    "build-windows": "deno compile --allow-all --output=./deno_chat_server_windows --target=x86_64-pc-windows-msvc ./main.ts"
   }
 }
