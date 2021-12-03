@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "dev": "deno run --allow-all --watch=./**/*.ts ./main.ts",
+    "compile": "deno compile --allow-all --output=./build/chat_server ./main.ts"
+  }
+}

@@ -1,0 +1,16 @@
+export enum COMMANDS {
+  'EXIT' = 'EXIT',
+  'HELP' = 'HELP',
+  'LOGIN' = 'LOGIN',
+  'BLOCK' = 'BLOCK',
+  'CHANNEL' = 'CHANNEL',
+  'CHANNELS' = 'CHANNELS',
+  'JOIN' = 'JOIN',
+  'KICK' = 'KICK',
+  'LEAVE' = 'LEAVE',
+  'LOGOUT' = 'LOGOUT',
+  'MEMBER' = 'MEMBER',
+  'CHATTERS' = 'CHATTERS',
+  'SWITCH' = 'SWITCH',
+  'PM' = 'PM',
+}

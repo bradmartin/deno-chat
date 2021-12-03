@@ -1,0 +1,12 @@
+{
+  "deno.enable": true,
+  "deno.lint": true,
+  "deno.unstable": false,
+  "deno.suggest.imports.hosts": {
+    "https://deno.land": true
+  },
+  "deno.suggest.autoImports": true,
+  "deno.codeLens.references": true,
+  "deno.codeLens.referencesAllFunctions": true,
+  "deno.codeLens.implementations": true
+}
