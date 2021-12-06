@@ -1,24 +1,16 @@
 import { Server } from './src/server.ts';
 export { EventEmitter } from 'https://deno.land/std@0.116.0/node/events.ts';
 import * as log from 'https://deno.land/std@0.116.0/log/mod.ts';
-import Ask from 'https://deno.land/x/ask@1.0.6/mod.ts';
 
 export const logger = await setupLogger();
 
-// if port = 0 then you'll be prompted for a port number on start up, otherwise set your port value here
-export let { port } = { port: 0 };
+// Default port is 8080. Pass the `-p <value>` argument to `deno run` to set the port to listen on.
+export let { port } = { port: 8080 };
 
-// prompt the user for what port they want to open on the server
-if (port === 0) {
-  const ask = new Ask();
-  const answers = await ask.prompt([
-    {
-      name: 'port',
-      type: 'number',
-      message: 'Enter a valid number for the port to open Deno chat?',
-    },
-  ]);
-  port = answers['port'] ? (answers['port'] as number) : 8080;
+if (Deno.args.length >= 2) {
+  if (Deno.args[0] === '-p') {
+    port = parseInt(Deno.args[1]);
+  }
 }
 
 export const server = new Server();

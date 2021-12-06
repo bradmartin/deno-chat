@@ -1,4 +1,4 @@
-# Chat Server written with Deno & TS
+# Chat Server written in TS running with Deno
 
 ![Deno Chat](./assets/images/deno-chat-one.png)
 
@@ -11,17 +11,17 @@ You will need Deno installed. [Installation Guide here.](https://deno.land/#inst
 brew install deno
 ```
 
-If you have `npm` installed you can use some npm scripts below, if not the deno commands work just fine.
+If you have `npm` installed you can use some npm scripts below, if not the deno commands work just fine (see package.json scripts for more).
 
 ## Development
 
-`deno run --allow-all --watch=./**/*.ts ./main.ts`
+`deno run --allow-all --watch=./**/*.ts ./main.ts -p 4040`.
 or with npm
 `npm run dev`
 
-- This will build and start the server. You will be prompted to enter a port number on start up. If you do not want to do this, change the default port value inside `main.ts`. Default value is `export let { port } = { port: 0 };` Change from 0 to your desired port and the server will start up as configured.
+- This will build and start the server. Default port is 8080. If you pass the `-p <value>` argument you can set the port to listen on.
 
-## Build Executables
+## Build Executables (Unstable in Deno right now)
 
 `deno compile --allow-all --output=./build/chat_server ./main.ts`
 or with npm
@@ -63,7 +63,7 @@ or with npm
 
 ### Dependencies
 
-- Ask: https://deno.land/x/ask@1.0.6/mod.ts - A third party lib for prompting the user with a question and answer.
+- No external dependencies.
 
 ### Why Deno
 
