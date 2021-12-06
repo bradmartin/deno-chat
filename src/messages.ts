@@ -8,6 +8,7 @@ export enum SERVER_MESSAGES {
   INVALID_CHATROOM_MEMBERS = `⚠️  Please enter a chatroom to get the user count. ⚠️`,
   INVALID_KICK = `⚠️  Please enter the chatroom name and username of who to kick. ⚠️`,
   NOT_ADMIN = `⚠️  You are not the admin of the chatroom, only admins can kick a user. ⚠️`,
+  CANT_PM_YOURSELF = `⚠️  You cannot send a private message to yourself. ⚠️`,
   LOGGED_IN = `⚡️  You are now logged in, join a chatroom to start chatting with other users. ⚡️`,
   ALREADY_LOGGED_IN = `You are already logged in.`,
   LOGGED_OUT = `👋  You have logged out. You will need to login again before chatting.`,

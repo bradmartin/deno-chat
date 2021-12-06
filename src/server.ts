@@ -1,8 +1,8 @@
 import { EventEmitter, logger, port } from '../main.ts';
 import { User } from './user.ts';
 import { Packet } from './packet.ts';
-import { COMMANDS } from '../utils/commands.ts';
-import { SERVER_MESSAGES } from '../utils/messages.ts';
+import { COMMANDS } from './commands.ts';
+import { SERVER_MESSAGES } from './messages.ts';
 import { CommandHandlers } from './command-handlers.ts';
 import { ChatRoom } from './chatroom.ts';
 import { WelcomeMessage } from './welcome-message.ts';
@@ -58,7 +58,6 @@ export class Server extends EventEmitter {
           break;
         } else {
           // some value was sent to the server so we need to parse it and handle accordingly
-          // catch arrow keys since we dont want user spamming with those for now (could expand on the list later)
           const dataArray = buffer.subarray(0, count!);
           const text = decoder.decode(dataArray).trim();
           this._handleMessage(text, user);
@@ -71,7 +70,7 @@ export class Server extends EventEmitter {
 
   private _handleMessage(text: string, user: User) {
     // check if the text is empty - DO NOTHING
-    if (!text || text === undefined || text === '' || text === null) {
+    if (!text) {
       return;
     }
 
@@ -97,7 +96,7 @@ export class Server extends EventEmitter {
     // user is in good to send a message to the active chat room
     const messageString = `${new Date().toLocaleTimeString()} > ${user.name} :: ${text}`;
     logger.info(messageString);
-    this.sendChatroomMessage(messageString, user);
+    this._sendChatroomMessage(messageString, user);
   }
 
   private async _write(data: Uint8Array | string | Packet, connection: Deno.Conn) {
@@ -170,7 +169,7 @@ export class Server extends EventEmitter {
     }
   }
 
-  private async sendChatroomMessage(msg: string, user: User) {
+  private async _sendChatroomMessage(msg: string, user: User) {
     try {
       // loop all the chatroom users and send message
       for await (const x of user.activeChatRoom!.connectedUsers) {

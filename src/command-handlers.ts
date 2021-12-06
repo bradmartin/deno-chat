@@ -1,4 +1,4 @@
-import { SERVER_MESSAGES } from '../utils/messages.ts';
+import { SERVER_MESSAGES } from './messages.ts';
 import { User } from './user.ts';
 import { server, logger } from '../main.ts';
 import { ChatRoom } from './chatroom.ts';
@@ -8,6 +8,7 @@ export class CommandHandlers {
     // need to close the connection for the user
     user.connection.closeWrite();
   }
+
   static info(user: User) {
     // need to show all of the available commands to the USER who sent the command
     server.messageToSender(SERVER_MESSAGES.INFO, user.connection);
@@ -15,10 +16,7 @@ export class CommandHandlers {
 
   static async PM(params: string[], user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     // be sure we have username and message to send
     if (params.length <= 1) {
@@ -26,12 +24,19 @@ export class CommandHandlers {
       server.systemMessageToUser(SERVER_MESSAGES.INVALID_WHISPER, user.connection);
     } else if (params.length >= 2) {
       const usernameToMessage = params[0];
+      // just a safety check, do not send PM to the user sending :)
+      if (user.name === usernameToMessage) {
+        // yea do not do this 😁 - tell the user
+        server.systemMessageToUser(SERVER_MESSAGES.CANT_PM_YOURSELF, user.connection);
+        return;
+      }
+
+      // okay now we're good to parse the message and find the recipient and move forward
       const msg = params.slice(1).join(' ');
 
       // we need to find the user being messaged and see if they are blocked by the sender (user argument in this case)
       const recipientIndex = server.connectedUsers.findIndex((x) => x.name === usernameToMessage);
       const recipient = server.connectedUsers[recipientIndex];
-      console.log('we have receipient', recipient);
       if (!recipient) {
         // we dont have the receipient so we can't send a PM
         server.messageToSender(
@@ -41,33 +46,28 @@ export class CommandHandlers {
         return;
       }
 
-      console.log('looping recipient blocked users');
-      for await (const blockedUser of recipient.blockedUsers) {
-        console.log(blockedUser);
-        if (blockedUser.id === usernameToMessage) {
-          logger.info(`Private message was blocked, ${user.name} cannot message ${blockedUser.name}`);
-          return;
+      if (recipient.blockedUsers.length >= 1) {
+        // the recipient has blocked people
+        // need to be sure the sender is not on the blocked list
+        for await (const b of recipient.blockedUsers) {
+          if (b.id === user.id) {
+            // the sender is on the recipient block list so we don't send the message
+            await server.systemMessageToUser(`Cannot send message.`, user.connection);
+            return;
+          }
         }
       }
 
-      if (recipient) {
-        // append the datetime to the message and PRIVATE MESSAGE NOTE
-        const messageString = `${new Date().toLocaleTimeString()} > 🤫 Private Message 🤫 > ${user.name} :: ${msg}`;
-        logger.info(messageString);
-        await server.messageToSender(messageString, recipient.connection);
-      } else {
-        // no user found so tell the user that the user is offline and didn't get the message
-        server.messageToSender('user is not online', user.connection);
-      }
+      // append the datetime to the message and PRIVATE MESSAGE NOTE
+      const messageString = `${new Date().toLocaleTimeString()} > 🤫 Private Message 🤫 > ${user.name} :: ${msg}`;
+      logger.info(messageString);
+      await server.messageToSender(messageString, recipient.connection);
     }
   }
 
   static async blockUser(params: string[], user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     // be sure we have the username param to ignore
     if (params.length <= 0) {
@@ -90,10 +90,7 @@ export class CommandHandlers {
 
   static async listOfBlockedUsers(user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     // get list and format for string
     let blockedUserString = '';
@@ -158,14 +155,11 @@ export class CommandHandlers {
   }
 
   static logout(user: User) {
-    // check if the user is authenticated first, if not no need to reset and let them know to login first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    } else {
-      user.resetUser();
-      server.systemMessageToUser(SERVER_MESSAGES.LOGGED_OUT, user.connection);
-    }
+    // check auth first
+    if (!CommandHandlers._authCheck(user)) return;
+
+    user.resetUser();
+    server.systemMessageToUser(SERVER_MESSAGES.LOGGED_OUT, user.connection);
   }
 
   /**
@@ -175,10 +169,7 @@ export class CommandHandlers {
    */
   static async joinChatroom(params: string[], user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     // user is auth'd so be sure we have chatroom name
     if (params.length <= 0) {
@@ -216,10 +207,7 @@ export class CommandHandlers {
 
   static leaveChatroom(params: string[], user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     // be sure we have the chatroom name param to leave
     if (params.length <= 0) {
@@ -240,10 +228,7 @@ export class CommandHandlers {
 
   static async chatRoomUsers(params: string[], user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     // be sure we have the chatroom name param to find users
     if (params.length <= 0) {
@@ -268,10 +253,7 @@ export class CommandHandlers {
 
   static async kickUser(params: string[], user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     // be sure we have the chatroom name and username param to kick the correct user
     if (params.length <= 1) {
@@ -307,10 +289,7 @@ export class CommandHandlers {
 
   static activeChatRoom(user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     const msg = user.activeChatRoom
       ? `Your active channel is: ${user.activeChatRoom.name}`
@@ -320,18 +299,12 @@ export class CommandHandlers {
 
   static listJoinedRooms(user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
   }
 
   static async listChatRooms(user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     // get a formatted list of the chatrooms on the server instance and write them
     if (server.chatRooms.length <= 0) {
@@ -349,10 +322,7 @@ export class CommandHandlers {
 
   static allUsers(user: User) {
     // check auth first
-    if (!user.isAuthenticated) {
-      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
-      return;
-    }
+    if (!CommandHandlers._authCheck(user)) return;
 
     server.systemMessageToUser(`Currently ${server.connectedUsers.length} users connected to server.`, user.connection);
   }
@@ -370,10 +340,20 @@ export class CommandHandlers {
 
   static whoAmI(user: User) {
     const msg = `
-      Id: ${user.id},
-      Name: ${user.name},
+      Id: ${user.id}
+      Name: ${user.name}
       Active Chat Room: ${user.activeChatRoom?.name}
     `;
     server.messageToSender(msg, user.connection);
+  }
+
+  private static _authCheck(user: User) {
+    // check auth first
+    if (!user.isAuthenticated) {
+      server.systemMessageToUser(SERVER_MESSAGES.NOT_AUTHENTICATED, user.connection);
+      return false;
+    } else {
+      return true;
+    }
   }
 }
