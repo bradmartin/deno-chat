@@ -30,7 +30,6 @@ export enum SERVER_MESSAGES {
   # /KICK <chatroom name> <username> - Kick a user from a chatroom you're an admin of. 🥾
   # /BLOCK <username> - Block a user to avoid seeing their messages. 🛑
   # /BLOCKED - List of users you have blocked. 🛑
-  # /MEMBER - List chatroom you've joined. 📝
   # /ALL_USERS - List users on the server. 🗣
   # /PM <username> <message> - Send a private message to user. 🤫
   # /WHOAMI - Show user information. ℹ️
