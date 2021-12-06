@@ -2,6 +2,19 @@
 
 ![Deno Chat](./assets/images/deno-chat-one.png)
 
+## Outline
+
+- Run this project (see development section below) on your machine (the server).
+- In a terminal `telnet localhost <port>` - Default port for this project is 8080 (more below to pass the port argument).
+- Once you are connected via telnet to the server. You will see a welcome message on the next steps. Everything should work well enough with simple UX that no further instructions are needed.
+- However, this is what should happen :)
+  -- You should be informed of rooms on the server and told to login. After you `/login` with a username, you can then join or create chatrooms.
+  -- `/join <chatroom>` will join an existing room or will create a new chatroom and you will be the admin of the room allowing you to kick other users from the chatroom with the `/kick <chatroom> <username>` command.
+  -- There also exists a `/block <username>` command which will prevent you from receiving any messages from the blocked user.
+  -- Private message functionality exists to send messages private and directly to the user specified with `/pm <username> <your message>`. This is also in sync with the blocked users. So if you have someone blocked, you should not receive messages from them.
+
+A full list of the commands are below in the "Server Commands" section. If you want to browse the commands while connected to the server. Enter `/info` and a list will print to make it easier to find the various options.
+
 ## Setup
 
 You will need Deno installed. [Installation Guide here.](https://deno.land/#installation)
