@@ -149,9 +149,6 @@ export class Server extends EventEmitter {
       case COMMANDS.LEAVE:
         CommandHandlers.leaveChatroom(params, user);
         break;
-      case COMMANDS.MEMBER:
-        CommandHandlers.listJoinedRooms(user);
-        break;
       case COMMANDS.PM:
         CommandHandlers.PM(params, user);
         break;

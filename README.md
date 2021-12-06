@@ -51,8 +51,6 @@ or with npm
 
 #### /BLOCKED - List of users you have blocked. 🛑
 
-#### /MEMBER - List chatroom you've joined. 📝
-
 #### /ALL_USERS - List users on the server. 🗣
 
 #### /PM <username> <message> - Send a private message to user. 🤫
