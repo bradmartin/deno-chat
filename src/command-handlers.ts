@@ -119,6 +119,7 @@ export class CommandHandlers {
     if (user.isAuthenticated) {
       // user is already authenticated, so for now just tell them... logout first
       server.systemMessageToUser(SERVER_MESSAGES.ALREADY_LOGGED_IN, user.connection);
+      return;
     }
 
     if (params.length <= 0) {
