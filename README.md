@@ -42,6 +42,8 @@ or with npm
 
 ## Server Commands
 
+![Deno Chat Commands](./assets/images/commands.png)
+
 #### /INFO - List available commands. 🙋‍♂️
 
 #### /LOGIN <desired username> - Authenticate with the server. 🔑
